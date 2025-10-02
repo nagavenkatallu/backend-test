@@ -29,16 +29,22 @@ jobs:
 
       - name: Deploy to GCE
         run: |
-          echo "OS Login is enabled. Using IAM roles for authentication."
+          echo "Setting up SSH..."
+          # Write the private key from GitHub Secrets to a file in the runner
+          echo "${{ secrets.GCP_SSH_PRIVATE_KEY }}" > gcp_ssh_key
+          # Set correct, strict permissions required by SSH
+          chmod 600 gcp_ssh_key
+          
+          echo "Fetching VM IP address..."
+          IP_ADDRESS=$(gcloud compute instances describe ${{ secrets.GCE_INSTANCE_NAME }} --zone=${{ secrets.GCE_INSTANCE_ZONE }} --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
+          echo "VM IP is $IP_ADDRESS"
           
           echo "Copying application to VM..."
-          gcloud compute scp \
+          scp -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i gcp_ssh_key \
             ./target/*.jar \
-            ${{ secrets.GCE_INSTANCE_NAME }}:~/app.jar \
-            --zone=${{ secrets.GCE_INSTANCE_ZONE }}
+            ci_user@$IP_ADDRESS:~/app.jar
           
           echo "Restarting application on VM..."
-          gcloud compute ssh ${{ secrets.GCE_INSTANCE_NAME }} --zone=${{ secrets.GCE_INSTANCE_ZONE }} --command="
-            pkill -f 'java -jar' || true
-            nohup java -jar ~/app.jar > ~/app.log 2>&1 &
-          "
+          ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i gcp_ssh_key \
+            ci_user@$IP_ADDRESS \
+            "pkill -f 'java -jar' || true; nohup java -jar ~/app.jar > ~/app.log 2>&1 &"
