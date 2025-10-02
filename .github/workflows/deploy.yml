@@ -1,0 +1,45 @@
+name: Deploy Backend to GCE
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build with Maven
+        run: mvn clean package -DskipTests
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy to GCE
+        run: |
+          # Copy the JAR file to the GCE instance
+          gcloud compute scp \
+            ./target/*.jar \
+            ${{ secrets.GCE_INSTANCE_NAME }}:~/app.jar \
+            --zone=${{ secrets.GCE_INSTANCE_ZONE }}
+
+          # SSH into the instance and run deployment commands
+          gcloud compute ssh ${{ secrets.GCE_INSTANCE_NAME }} --zone=${{ secrets.GCE_INSTANCE_ZONE }} --command="
+            # Stop the old process if it exists
+            pkill -f 'java -jar' || true
+
+            # Start the new application in the background
+            nohup java -jar ~/app.jar > ~/app.log 2>&1 &
+          "
