@@ -57,6 +57,6 @@ jobs:
           echo "--- 4. Restarting the application on the VM ---"
           ssh -o StrictHostKeyChecking=no -i ./ssh_key \
             ci_user@$IP_ADDRESS \
-            "sudo systemctl restart springboot-app && sudo systemctl is-active --quiet springboot-app"
+            "sudo systemctl restart backend-test && sudo systemctl is-active --quiet backend-test"
           
           echo "--- Deployment complete ---"
