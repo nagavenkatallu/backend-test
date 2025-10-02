@@ -29,27 +29,29 @@ jobs:
 
       - name: Deploy to GCE
         run: |
-          # 1. First, create a new SSH key inside the GitHub runner
+          # 1. Create a new SSH key inside the GitHub runner. This part is working correctly.
           echo "Generating SSH key..."
           ssh-keygen -t rsa -f gcp_ssh_key -N '' -C "github-actions"
           
-          # 2. Add the newly created PUBLIC key to the VM's instance-level metadata.
-          #    The key will be automatically removed by GCP after a short time.
+          # 2. Add the PUBLIC key to the VM's instance-level metadata. This is also working correctly.
           echo "Adding SSH key to VM instance metadata..."
           gcloud compute instances add-metadata ${{ secrets.GCE_INSTANCE_NAME }} \
             --zone=${{ secrets.GCE_INSTANCE_ZONE }} \
             --metadata-from-file ssh-keys=gcp_ssh_key.pub
           
-          # 3. Now, use gcloud scp and ssh as before. 
-          #    gcloud will automatically find and use the private key we just created.
+          # 3. Copy the application, EXPLICITLY telling gcloud to use our new private key.
           echo "Copying application to VM..."
           gcloud compute scp \
+            --ssh-key-file=gcp_ssh_key \
             ./target/*.jar \
             ${{ secrets.GCE_INSTANCE_NAME }}:~/app.jar \
             --zone=${{ secrets.GCE_INSTANCE_ZONE }}
           
+          # 4. Restart the application, EXPLICITLY telling gcloud to use our new private key.
           echo "Restarting application on VM..."
-          gcloud compute ssh ${{ secrets.GCE_INSTANCE_NAME }} --zone=${{ secrets.GCE_INSTANCE_ZONE }} --command="
-            pkill -f 'java -jar' || true
-            nohup java -jar ~/app.jar > ~/app.log 2>&1 &
-          "
+          gcloud compute ssh \
+            --ssh-key-file=gcp_ssh_key \
+            ${{ secrets.GCE_INSTANCE_NAME }} --zone=${{ secrets.GCE_INSTANCE_ZONE }} --command="
+              pkill -f 'java -jar' || true
+              nohup java -jar ~/app.jar > ~/app.log 2>&1 &
+            "
