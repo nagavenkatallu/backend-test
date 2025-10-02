@@ -30,9 +30,7 @@ jobs:
       - name: Deploy to GCE
         run: |
           echo "Setting up SSH..."
-          # Write the private key from GitHub Secrets to a file in the runner
           echo "${{ secrets.GCP_SSH_PRIVATE_KEY }}" > gcp_ssh_key
-          # Set correct, strict permissions required by SSH
           chmod 600 gcp_ssh_key
           
           echo "Fetching VM IP address..."
@@ -44,7 +42,7 @@ jobs:
             ./target/*.jar \
             ci_user@$IP_ADDRESS:~/app.jar
           
-          echo "Restarting application on VM..."
+          echo "Restarting application on VM using absolute paths..."
           ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i gcp_ssh_key \
             ci_user@$IP_ADDRESS \
-            "pkill -f 'java -jar' || true; nohup java -jar ~/app.jar > ~/app.log 2>&1 &"
+            "/usr/bin/pkill -f 'java -jar' || true; nohup /usr/bin/java -jar ~/app.jar > ~/app.log 2>&1 &"
