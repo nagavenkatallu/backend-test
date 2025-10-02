@@ -29,17 +29,27 @@ jobs:
 
       - name: Deploy to GCE
         run: |
-          # Copy the JAR file to the GCE instance
+          # 1. First, create a new SSH key inside the GitHub runner
+          echo "Generating SSH key..."
+          ssh-keygen -t rsa -f gcp_ssh_key -N '' -C "github-actions"
+          
+          # 2. Add the newly created PUBLIC key to the VM's instance-level metadata.
+          #    The key will be automatically removed by GCP after a short time.
+          echo "Adding SSH key to VM instance metadata..."
+          gcloud compute instances add-metadata ${{ secrets.GCE_INSTANCE_NAME }} \
+            --zone=${{ secrets.GCE_INSTANCE_ZONE }} \
+            --metadata-from-file ssh-keys=gcp_ssh_key.pub
+          
+          # 3. Now, use gcloud scp and ssh as before. 
+          #    gcloud will automatically find and use the private key we just created.
+          echo "Copying application to VM..."
           gcloud compute scp \
             ./target/*.jar \
             ${{ secrets.GCE_INSTANCE_NAME }}:~/app.jar \
             --zone=${{ secrets.GCE_INSTANCE_ZONE }}
-
-          # SSH into the instance and run deployment commands
+          
+          echo "Restarting application on VM..."
           gcloud compute ssh ${{ secrets.GCE_INSTANCE_NAME }} --zone=${{ secrets.GCE_INSTANCE_ZONE }} --command="
-            # Stop the old process if it exists
             pkill -f 'java -jar' || true
-
-            # Start the new application in the background
             nohup java -jar ~/app.jar > ~/app.log 2>&1 &
           "
