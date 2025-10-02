@@ -29,29 +29,36 @@ jobs:
 
       - name: Deploy to GCE
         run: |
-          # 1. Create a new SSH key inside the GitHub runner. This part is working correctly.
+          # 1. Create a new SSH key.
           echo "Generating SSH key..."
-          ssh-keygen -t rsa -f gcp_ssh_key -N '' -C "github-actions"
+          ssh-keygen -t rsa -f gcp_ssh_key -N ''
           
-          # 2. Add the PUBLIC key to the VM's instance-level metadata. This is also working correctly.
-          echo "Adding SSH key to VM instance metadata..."
+          # 2. Format the public key with the username "runner". 
+          #    This resolves the "missing <username>" warning from your logs.
+          echo "runner:$(cat gcp_ssh_key.pub)" > formatted_gcp_key.pub
+          
+          # 3. Add this correctly formatted key to the VM's instance metadata.
+          echo "Adding formatted SSH key to VM instance metadata..."
           gcloud compute instances add-metadata ${{ secrets.GCE_INSTANCE_NAME }} \
             --zone=${{ secrets.GCE_INSTANCE_ZONE }} \
-            --metadata-from-file ssh-keys=gcp_ssh_key.pub
+            --metadata-from-file ssh-keys=formatted_gcp_key.pub
           
-          # 3. Copy the application, EXPLICITLY telling gcloud to use our new private key.
-          echo "Copying application to VM..."
-          gcloud compute scp \
-            --ssh-key-file=gcp_ssh_key \
+          # 4. Get the external IP address of the VM.
+          echo "Fetching VM IP address..."
+          IP_ADDRESS=$(gcloud compute instances describe ${{ secrets.GCE_INSTANCE_NAME }} \
+            --zone=${{ secrets.GCE_INSTANCE_ZONE }} \
+            --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
+          echo "VM IP is $IP_ADDRESS"
+          
+          # 5. Use the standard Linux 'scp' command to copy the file.
+          #    We are now bypassing the gcloud wrapper entirely.
+          echo "Copying application to VM using standard scp..."
+          scp -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i gcp_ssh_key \
             ./target/*.jar \
-            ${{ secrets.GCE_INSTANCE_NAME }}:~/app.jar \
-            --zone=${{ secrets.GCE_INSTANCE_ZONE }}
+            runner@$IP_ADDRESS:~/app.jar
           
-          # 4. Restart the application, EXPLICITLY telling gcloud to use our new private key.
-          echo "Restarting application on VM..."
-          gcloud compute ssh \
-            --ssh-key-file=gcp_ssh_key \
-            ${{ secrets.GCE_INSTANCE_NAME }} --zone=${{ secrets.GCE_INSTANCE_ZONE }} --command="
-              pkill -f 'java -jar' || true
-              nohup java -jar ~/app.jar > ~/app.log 2>&1 &
-            "
+          # 6. Use the standard Linux 'ssh' command to restart the application.
+          echo "Restarting application on VM using standard ssh..."
+          ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i gcp_ssh_key \
+            runner@$IP_ADDRESS \
+            "pkill -f 'java -jar' || true; nohup java -jar ~/app.jar > ~/app.log 2>&1 &"
