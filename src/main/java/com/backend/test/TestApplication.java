@@ -14,7 +14,7 @@ public class TestApplication {
 	}
 	@GetMapping("/api/hello")
 	public String sayHello() {
-		return "Hello from the Spring Boot Backend! 👋";
+		return "Ila links inkosari open cheyyaku \uD83D\uDE1B";
 	}
 
 }
