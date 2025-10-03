@@ -16,5 +16,7 @@ public class TestApplication {
 	public String sayHello() {
 		return "Ila links inkosari open cheyyaku \uD83D\uDE1B";
 	}
+	@GetMapping("/")
+	public  String homePage(){return "Home page";}
 
 }
