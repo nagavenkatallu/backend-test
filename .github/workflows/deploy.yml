@@ -1,14 +1,7 @@
-name: Deploy Backend to GCE (Manual SSH)
-
-on:
-  push:
-    branches: [ "main" ]
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    # Permissions are needed for the Google Auth action
     permissions:
       contents: 'read'
       id-token: 'write'
@@ -26,20 +19,16 @@ jobs:
       - name: Build with Maven
         run: mvn clean package -DskipTests
 
-      # You still need to authenticate to GCP to use the gcloud CLI
       - name: Authenticate to Google Cloud
         id: auth
         uses: 'google-github-actions/auth@v2'
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
-      # This single step handles the entire deployment using shell commands
       - name: Deploy to GCE via SSH
         run: |
           echo "--- 1. Setting up the SSH key ---"
-          # Write the private key from secrets to a temporary file
           echo "${{ secrets.GCP_SSH_PRIVATE_KEY }}" > ssh_key
-          # Set the required strict file permissions for the key
           chmod 600 ssh_key
 
           echo "--- 2. Fetching the VM's IP address ---"
@@ -54,9 +43,22 @@ jobs:
             ./target/*.jar \
             ci_user@$IP_ADDRESS:/home/ci_user/app.jar
 
-          echo "--- 4. Restarting the application on the VM ---"
+          echo "--- 4. Stopping, clearing logs, and starting the service ---"
           ssh -o StrictHostKeyChecking=no -i ./ssh_key \
             ci_user@$IP_ADDRESS \
-            "sudo systemctl restart backend-test && sudo systemctl is-active --quiet backend-test"
+            '
+              echo "--> Stopping service..."
+              sudo systemctl stop backend-test
+
+              echo "--> Clearing logs..."
+              sudo journalctl --rotate
+              sudo journalctl --vacuum-time=1s -u backend-test
+
+              echo "--> Starting service..."
+              sudo systemctl start backend-test
+          
+              echo "--> Verifying service is active..."
+              sudo systemctl is-active --quiet backend-test
+            '
           
           echo "--- Deployment complete ---"
