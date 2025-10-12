@@ -28,7 +28,13 @@ public class AuthService {
         String hashedPassword = passwordEncoder.encode(registerRequest.getPassword());
 
         // Mini-Task 2.2: Create and Save User
-        User newUser = new User(registerRequest.getEmail(), hashedPassword);
+        User newUser = new User();
+        newUser.setFirstName(registerRequest.getFirstName());
+        newUser.setLastName(registerRequest.getLastName());
+        newUser.setEmail(registerRequest.getEmail());
+        newUser.setPhoneNumber(registerRequest.getPhoneNumber()); // Can be null
+        newUser.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
+
         return userRepository.save(newUser);
     }
 }
