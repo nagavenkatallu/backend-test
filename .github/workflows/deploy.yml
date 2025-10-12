@@ -53,17 +53,10 @@ jobs:
           scp -o StrictHostKeyChecking=no -i ./ssh_key \
             ./target/*.jar \
             ci_user@$IP_ADDRESS:/home/ci_user/app.jar
-          
-          echo "--> Stopping service..."
-              sudo systemctl stop backend-test
-          
-          echo "--> Clearing logs..."
-              sudo journalctl --rotate
-              sudo journalctl --vacuum-time=1s -u backend-test
 
           echo "--- 4. Restarting the application on the VM ---"
           ssh -o StrictHostKeyChecking=no -i ./ssh_key \
             ci_user@$IP_ADDRESS \
-            "sudo systemctl restart backend-test && sudo systemctl is-active --quiet backend-test"
+            "sudo systemctl stop backend-test && sudo journalctl --rotate && sudo journalctl --vacuum-time=1s -u backend-test && sudo systemctl restart backend-test && sudo systemctl is-active --quiet backend-test"
           
           echo "--- Deployment complete ---"
