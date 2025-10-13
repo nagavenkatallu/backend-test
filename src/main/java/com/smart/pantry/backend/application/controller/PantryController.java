@@ -2,6 +2,7 @@ package com.smart.pantry.backend.application.controller;
 
 import com.smart.pantry.backend.application.dto.PantryItemDTO;
 import com.smart.pantry.backend.application.dto.PantryItemRequest;
+import com.smart.pantry.backend.application.dto.UpdatePantryItemRequest;
 import com.smart.pantry.backend.application.model.PantryItem;
 import com.smart.pantry.backend.application.model.User;
 import com.smart.pantry.backend.application.service.PantryService;
@@ -34,5 +35,20 @@ public class PantryController {
         PantryItem newPantryItem=pantryService.addPantryItemForUser(user,pantryItemRequest);
 
         return new ResponseEntity<>(newPantryItem, HttpStatus.CREATED);
+    }
+
+    @PutMapping("/items/{itemId}")
+    public ResponseEntity<PantryItem> updatePantryItem(@PathVariable Long itemId, @AuthenticationPrincipal User user, @Valid @RequestBody UpdatePantryItemRequest updatePantryItemRequest){
+        PantryItem updatedItem=pantryService.updatePantryItem(itemId, user, updatePantryItemRequest);
+        if(updatedItem == null){
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(updatedItem);
+    }
+
+    @DeleteMapping("/items/{itemId}")
+    public ResponseEntity<Void> deletePantryItem(@PathVariable Long itemId, @AuthenticationPrincipal User user){
+        pantryService.deletePantryItem(itemId, user);
+        return ResponseEntity.noContent().build();
     }
 }
