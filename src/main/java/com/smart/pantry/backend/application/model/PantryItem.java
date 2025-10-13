@@ -1,5 +1,6 @@
 package com.smart.pantry.backend.application.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -98,6 +99,7 @@ public class PantryItem {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id",nullable = false)
+    @JsonIgnore
     private User user;
 
     @Column(nullable = false)

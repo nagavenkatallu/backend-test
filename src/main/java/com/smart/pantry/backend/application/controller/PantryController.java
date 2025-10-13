@@ -1,14 +1,15 @@
 package com.smart.pantry.backend.application.controller;
 
 import com.smart.pantry.backend.application.dto.PantryItemDTO;
+import com.smart.pantry.backend.application.dto.PantryItemRequest;
 import com.smart.pantry.backend.application.model.PantryItem;
 import com.smart.pantry.backend.application.model.User;
 import com.smart.pantry.backend.application.service.PantryService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -21,10 +22,17 @@ public class PantryController {
     public PantryController(PantryService pantryService){
         this.pantryService=pantryService;
     }
-    @GetMapping("items")
+    @GetMapping("/items")
     public ResponseEntity<List<PantryItemDTO>> getUserPantryItems(@AuthenticationPrincipal User user){
         List<PantryItemDTO> userPantryItems=pantryService.getItemsForUser(user);
 
         return ResponseEntity.ok(userPantryItems);
+    }
+
+    @PostMapping("/items")
+    public ResponseEntity<PantryItem> addItemToPantry(@AuthenticationPrincipal User user, @Valid @RequestBody PantryItemRequest pantryItemRequest){
+        PantryItem newPantryItem=pantryService.addPantryItemForUser(user,pantryItemRequest);
+
+        return new ResponseEntity<>(newPantryItem, HttpStatus.CREATED);
     }
 }
