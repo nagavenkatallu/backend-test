@@ -1,5 +1,7 @@
 package com.smart.pantry.backend.application.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.vertexai.VertexAI;
@@ -9,6 +11,7 @@ import com.google.cloud.vertexai.api.Part;
 import com.google.cloud.vertexai.generativeai.GenerativeModel;
 import com.google.cloud.vertexai.generativeai.ResponseHandler;
 import com.google.protobuf.ByteString;
+import com.smart.pantry.backend.application.dto.AIPantryItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 
 /**
  * Service to handle image analysis using Google Cloud Storage and Vertex AI.
@@ -56,7 +60,7 @@ public class ImageAnalysisService {
      * @return The text response from the Vertex AI model.
      * @throws IOException if there is an issue reading the file from GCS.
      */
-    public String analyzeImage(String fileName) throws IOException {
+    public List<AIPantryItem> analyzeImage(String fileName) throws IOException {
 
         BlobId blobId = BlobId.of(bucketName, fileName);
         byte[] imageBytes = storage.readAllBytes(blobId);
@@ -104,13 +108,41 @@ public class ImageAnalysisService {
 
             // 5. Extract and return the text response
             String analysisResult = ResponseHandler.getText(response);
+            
+//            System.out.println(analysisResult);
+            List<AIPantryItem> items= parseResult(analysisResult);
 
-            return analysisResult;
+            return items;
         } catch (Exception e) {
             // Re-throw as a runtime exception to be handled by the controller advice/exception handler
             e.printStackTrace();
             throw new RuntimeException("Failed to analyze image with Vertex AI.", e);
         }
+    }
+
+    private List<AIPantryItem> parseResult(String analysisResult) {
+        int startIndex=analysisResult.indexOf('[');
+        int lastIndex=analysisResult.lastIndexOf(']');
+        String jsonString=null;
+        List<AIPantryItem> items=null;
+        if(startIndex!=-1 && lastIndex!=-1){
+            jsonString=analysisResult.substring(startIndex,lastIndex+1);
+        }
+        else {
+            throw new RuntimeException("Unable to convert the AI response to JSON");
+        }
+
+        System.out.println(jsonString);
+
+        ObjectMapper objectMapper=new ObjectMapper();
+
+        try {
+            items=objectMapper.readValue(jsonString,new TypeReference<List<AIPantryItem>>() {});
+        }
+        catch (Exception e){
+            e.printStackTrace();
+        }
+        return items;
     }
 }
 

@@ -1,5 +1,6 @@
 package com.smart.pantry.backend.application.controller;
 
+import com.smart.pantry.backend.application.dto.AIPantryItem;
 import com.smart.pantry.backend.application.dto.ImageAnalysisRequest;
 import com.smart.pantry.backend.application.service.ImageAnalysisService;
 import jakarta.validation.Valid;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/vertexai")
@@ -22,9 +24,9 @@ public class ImageAnalysisController {
     }
 
     @PostMapping("/analyze")
-    public ResponseEntity<String> analyzeImage(@Valid @RequestBody ImageAnalysisRequest request){
+    public ResponseEntity<?> analyzeImage(@Valid @RequestBody ImageAnalysisRequest request){
         try {
-            String result = imageAnalysisService.analyzeImage(request.getFileName());
+            List<AIPantryItem> result = imageAnalysisService.analyzeImage(request.getFileName());
             return ResponseEntity.ok(result);
         } catch (IOException e) {
             // This specifically catches GCS errors (e.g., file not found)
